@@ -1,0 +1,122 @@
+'******************************** NetBIOS Naming Service Demo (NBNS) ****************************************
+'
+'This is a simple demo on NetBIOS Naming Service based on codes provided by Andy Bainbridge.  The protocol 
+'used is UDP broadcast so the scope is confined tot he local subnet.  This demo accepts a NBNS request to 
+'see if a name is taken, if the request matches up with the name of this device, a reply will be given.
+'
+'
+'ver.12112007
+'**********************************************************************************************************
+
+include "global.tbh"
+
+const NBNSsocket=1 ' Assign one socket for NBNS
+
+dim NBEncodedName as string(30) ' global string to hold the encoded name of this device
+
+declare function NBNSEncode(byref source as string) as string' forward reference
+
+sub on_sys_init
+
+	net.ip = "192.168.1.217"
+	
+	sock.num=NBNSSocket
+	sock.rxbuffrq(1)
+	sock.txbuffrq(1)	
+	
+	'do this to setup the socket
+	sock.num=NBNSSocket	
+	sock.protocol=PL_SOCK_PROTOCOL_UDP		
+	sock.localportlist="137"			
+	sock.inconmode=PL_SOCK_INCONMODE_ANY_IP_ANY_PORT	'Accept connection from any host
+	sock.targetport=137									'Target port for active opens.
+    sock.acceptbcast=YES
+	sock.targetbcast=NO
+	sock.reconmode=PL_SOCK_RECONMODE_3 
+	
+	sys.buffalloc
+	
+	NBEncodedName = NBNSEncode("TibboModule") 	'define the device name
+	' To avoid conflicts the name should be unique within the subnet.
+	' You might need to restart your web browser to flush its cache if you redefine the name on-the-fly.
+	' "nbtstat -R" on the command line sometimes helps to reset the client PCs netbios table while experimenting.
+	
+end sub
+
+
+function NBNSEncode(byref source as string) as string	' Sets the NetBIOS name for this device.
+														'Only the first 15 chars are significant.
+														'Embedded spaces get converted to underscores.  
+	dim i,j,c as byte
+	
+	j= len(source)
+	
+	if j>15 then j=15 	'NetBIOS names are 16 chars long but Microsoft use the 16th char as a suffix (usually &h00)
+	
+	for i = 1 to j
+		c=asc(mid(source,i,1))
+		
+		if (c >= 97) and (c<= 122) then c=c-32 	' upcasing
+		
+		if c=&h20 then c=&h5F 				   	' replacing space with underscore, web browsers don't handle 
+												'embedded spaces well.
+		
+		NBNSEncode=NBNSEncode+chr((c/16)+&h41)+chr((c mod 16)+&h41)  ' NBNS encoding
+	next i
+	
+	
+		NBNSEncode=NBNSEncode+strgen(15,"CA") 	'(encoded) space padding
+	
+	
+end function
+
+function NBNSDecode(byref source as string) as string
+
+	
+end function
+
+sub on_sock_data_arrival
+
+	if	sock.num=NBNSSocket then 
+		
+		dim thequery as string 
+		dim NBencodedQueryName as string(32)
+		dim typeclass as string(4)
+		dim qcount as byte
+		dim namestartpos as byte 
+		dim i as byte
+		
+		thequery= sock.getdata(50) ' read and process as RFC1002 NBNS request
+		qcount=asc(mid(thequery,6,1))
+		namestartpos=14
+		
+		for i = 1 to qcount	
+		
+			NBencodedQueryName=mid(thequery,namestartpos,32)
+			typeclass=mid(thequery,namestartpos+33,4)	
+			
+			if (typeclass=chr(0)+chr(&h20)+chr(0)+chr(1)) then	
+				if (left(NBencodedQueryName,30)=NBEncodedName) then	 ' reply if the names match
+					sock.setdata(left(thequery,2)) 'echo the transaction ID
+					sock.setdata(chr(&h84)+chr(0)+chr(0)+chr(0)+chr(0)+chr(1)+chr(0)+chr(0)+chr(0)+chr(0)+chr(&h20))
+					sock.setdata(NBencodedQueryName)
+					sock.setdata(chr(0)+chr(0)+chr(&h20)+chr(0)+chr(1)+chr(0)+chr(0)+chr(0)+chr(0)+chr(0)+chr(6)+chr(&h60)+chr(0))
+					sock.setdata(ddval(net.ip)) 
+					sock.send
+				end if	
+			end if	
+			
+			namestartpos=namestartpos+38
+			
+		next i	
+		sock.rxclear		
+	    exit sub 
+	    
+	end if	
+
+end sub 
+
+
+
+
+' Put your BASIC code here
