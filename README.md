@@ -1,5 +1,3 @@
-# CA-NetBIOS
+# NetBIOS Naming Service
 
-To download the most recent project without installing GIT, please press the green "Clone or Download" button and select "Download ZIP".
-
-For more detail about this project, please visit <a href="http://tibbo.com/programmable/applications/network/netbios.html" target="_blank">Project Description Page</a>
+This project shows the basics of interfacing with NBNS. When a network device searches using a certain NetBIOS name, the demo will reply with the proper answer.

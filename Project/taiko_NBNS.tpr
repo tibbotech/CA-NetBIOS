@@ -1,0 +1,25 @@
+[project]
+platform = TPP3W(G2)
+name = taiko_NBNS
+output = taiko_NBNS.tpc
+debug = on
+watch = NBEncodedName, c, source, thequery, enCoded, net.ip
+transport = udp_broadcast
+src_lib_ver = 2_01_03
+
+[address1]
+transport = udp_broadcast
+address = 0.127.0.0.8.41
+
+[file1]
+path = main.tbs
+type = basic
+opened = active
+breakpoints = 
+
+[file2]
+path = global.tbh
+type = header
+opened = yes
+breakpoints = 
+
